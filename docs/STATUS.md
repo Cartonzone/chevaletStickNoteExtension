@@ -1,6 +1,6 @@
-# Status — v0.0.15, 8 September 2026
+# Status — v0.0.16, 8 September 2026
 
-**0.0.15 is the store submission. 0.0.14 is the identical build, signed for hand-install.**
+**0.0.16 is the store submission. 0.0.14 is the identical build, signed for hand-install.**
 
 ## The thing to know before anything else
 
@@ -8,23 +8,30 @@
 which produces an installable file and nothing else, and pushed to GitHub, which Firefox does
 not read. Everyone who installed from the store has been on **0.0.8** the whole time.
 
-**0.0.15 is the first build since then meant for a listed upload**, and it therefore carries
-seven versions of change to a store user in one update. `CHANGELOG.md` is written for them.
-`docs/PUBLISHING.md` opens with the mistake and the two commands that differ.
+**0.0.16 is the build meant for a listed upload**, and it carries eight versions of change to a
+store user in one update. `CHANGELOG.md` is written for them.
 
-Its source is identical to 0.0.14. 0.0.14 was signed unlisted so the ghost fix could be
-installed by hand the same day, and a signed number cannot be reused in either channel -- so
-the store copy needed its own. The listed history will read 0.0.8, then 0.0.15.
+**0.0.15 was that build, and it missed.** Fixing `tools/sign.mjs` closed only one of the two
+places the channel is chosen: the Developer Hub's upload form asks again, on its own page,
+before it asks for the file, and *On your own* is unlisted. So 0.0.15 landed under **Other
+versions** with a `Self` badge instead of under **Listed versions**, and the sidebar still
+reads *Listed Version: 0.0.8*. That two-second check is written down in `docs/PUBLISHING.md`
+now, next to the API route that has no radio button to misclick.
 
-The two *builds* differ in exactly two ways, both derived from the version and both checked
-rather than asserted: the version string, inlined in five bundles, and the shadow host's tag
-name, which is a SHA-256 of `name@version` and so moves with it. Unzip the 0.0.14 `.xpi` next
-to `dist/` and diff them -- that is how this paragraph stopped saying "byte-identical", which
-is what it said first.
+The source of all three is identical to 0.0.14. 0.0.14 was signed unlisted deliberately, so the
+ghost fix could be installed by hand the same day; a signed number cannot be reused in either
+channel, so every subsequent attempt needs a fresh one. The listed history will read 0.0.8,
+then 0.0.16.
 
-## What 0.0.15 changed
+The *builds* differ in exactly two ways, both derived from the version and both checked rather
+than asserted: the version string, inlined in five bundles, and the shadow host's tag name,
+which is a SHA-256 of `name@version` and so moves with it. Unzip the 0.0.14 `.xpi` next to
+`dist/` and diff them -- that is how this paragraph stopped saying "byte-identical", which is
+what it said first.
 
-Nothing. It is 0.0.14, submitted through the channel that reaches people.
+## What 0.0.16 changed
+
+Nothing. It is 0.0.14, on its second attempt at the channel that reaches people.
 
 ## What 0.0.14 changed
 

@@ -20,8 +20,14 @@
  * number none of them used.
  *
  * 0.0.14 is on that list on purpose, and it is the trade-off in one release: the ghost-notes
- * fix had to be installable the same day, which means unlisted, which spends the number. The
- * identical code went to the store as 0.0.15. When both are wanted at once, budget two.
+ * fix had to be installable the same day, which means unlisted, which spends the number. When
+ * both are wanted at once, budget two.
+ *
+ * 0.0.15 is on it by accident, and it is why this script matters more than it looks. Fixing the
+ * default here closed only ONE of the two places the channel is chosen -- the Developer Hub's
+ * upload form asks again, on its own page, before the file, and "On your own" is unlisted.
+ * 0.0.15 went there. This has no radio button to misclick, which is the argument for using it
+ * rather than the web form.
  *
  * ## What --listed costs
  *

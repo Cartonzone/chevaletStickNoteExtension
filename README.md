@@ -8,12 +8,13 @@ next week and open the same URL: the note is still there, in the same place.
 
 Firefox extension. Offline, private, and yours to export.
 
-> **Status: 0.0.15, which is 0.0.14's code submitted to the store. The store is on 0.0.8.**
+> **Status: 0.0.16, which is 0.0.14's code, for the store. The store is still on 0.0.8.**
 >
 > This line said "awaiting review" for five releases and was wrong for all of them: the listing
-> was approved at 0.0.8, and 0.0.9 to 0.0.14 were signed through the *unlisted* channel and
-> published here, which Firefox does not read. Nobody who installed from the store received any
-> of them. [`CHANGELOG.md`](CHANGELOG.md) opens with that, and
+> was approved at 0.0.8, and 0.0.9 to 0.0.15 all went through the *unlisted* channel -- the
+> first five and 0.0.14 from the signing script's default, 0.0.15 from a radio button on the
+> upload form. Firefox does not read GitHub, so nobody who installed from the store has
+> received any of them. [`CHANGELOG.md`](CHANGELOG.md) opens with that, and
 > [`docs/PUBLISHING.md`](docs/PUBLISHING.md) has the two commands that differ.
 >
 > A signed build is installable by hand from the

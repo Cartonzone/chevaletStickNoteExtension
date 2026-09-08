@@ -3,7 +3,7 @@
 Written for the person installing it, not for the person who wrote it. Dates are the release
 date; the version notes on addons.mozilla.org are copied from here.
 
-## The store skips from 0.0.8 to 0.0.15, and here is why
+## The store skips from 0.0.8 to 0.0.16, and here is why
 
 If you installed Chevalet Note from addons.mozilla.org you are on **0.0.8**, and five versions
 appeared on GitHub over the following four days without your browser ever offering you one of
@@ -14,24 +14,27 @@ through Mozilla's *unlisted* channel — which produces a file you can install b
 nothing more — so none of them ever reached the store. A version number cannot be reused once
 Mozilla has signed it, in either channel, so those five are spent and cannot be re-released.
 
-**0.0.15 is all seven of them at once**, published properly. Everything below happened between
+**0.0.16 is all eight of them at once**, published properly. Everything below happened between
 0.0.8 and now; it is grouped by the version it was written in, because that is the honest
 record, but as far as the store is concerned it arrives in one update.
 
 ---
 
+## 0.0.16 — 8 September 2026
+
+**The same code again, and this time through the listed channel.**
+
 ## 0.0.15 — 8 September 2026
 
-**The same code as 0.0.14, submitted the right way.**
-
-There is no difference in what it does. 0.0.14 was signed unlisted so the fix below could be
-installed by hand the day it was written, and that spends the number permanently -- Mozilla
-will not sign 0.0.14 again in any channel. So the store copy needs its own, and this is it. The
-next release will not need two.
+Meant for the store, and it missed. The upload form asks *how to distribute this version*
+before it asks for the file -- **On this site** or **On your own** -- and the second is the
+unlisted channel. It went to the second. Same result as 0.0.9 to 0.0.13, by a different route:
+those five were the signing script's default, this one was a radio button.
 
 ## 0.0.14 — 8 September 2026
 
-Hand-install only; see above.
+Hand-install only, deliberately. Signed unlisted so the fix below could be installed the day it
+was written.
 
 **Notes going transparent and unusable, needing a page refresh.** Holding Alt makes the notes
 on a page translucent and lets you read and click what is underneath, which is a feature — but
