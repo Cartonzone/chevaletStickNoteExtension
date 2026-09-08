@@ -22,7 +22,7 @@ record, but as far as the store is concerned it arrives in one update.
 
 ## 0.0.16 — 8 September 2026
 
-**The same code again, and this time through the listed channel.**
+**The same code again, and this time it is on the store.**
 
 ## 0.0.15 — 8 September 2026
 

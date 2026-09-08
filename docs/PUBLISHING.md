@@ -56,15 +56,29 @@ upload form asks the same question again, on its own page, **before** it asks fo
 The second is unlisted. 0.0.15 went there, and nothing on the way says so -- the mistake is
 invisible until the version has already appeared in the wrong table.
 
-**How to check afterwards, in two seconds:**
+**How to check afterwards -- ask the server, do not read the page:**
 
-| Where it landed | What it means |
-|---|---|
-| **Listed versions** ("Currently on AMO"), badge `AMO` | right |
-| **Other versions**, badge `Self` | unlisted, and it reaches nobody |
+```bash
+pnpm amo:status
+```
 
-The sidebar says it outright as well: *Listed Version:* is the number store users have. If that
-is not the version just uploaded, it went to the wrong channel.
+`tools/amo-status.mjs` lists every version AMO holds with its channel and review state, and
+names the newest listed one. Read-only, one command, and it is the check that should have
+existed seven versions ago:
+
+```
+  version    channel     status              created
+  0.0.16     listed      public              2026-09-08 <- reaches store users
+  0.0.15     unlisted    public              2026-09-08
+  ...
+  0.0.8      listed      public              2026-09-04 <- reaches store users
+```
+
+The Developer Hub says the same thing to anyone reading it carefully: a version under **Listed
+versions** with an `AMO` badge is right, one under **Other versions** with a `Self` badge
+reaches nobody, and the sidebar's *Listed Version:* is what store users have. But three
+mistakes in a row survived that page, and a command that prints the answer beats a resolution
+to look harder.
 
 **The route with nothing to misclick** is the API, which takes the channel as an argument:
 
@@ -72,8 +86,13 @@ is not the version just uploaded, it went to the wrong channel.
 pnpm sign:listed
 ```
 
-The source archive still goes through the Hub form afterwards -- the API has no field for it --
-but the channel stops being a question anyone answers by hand.
+The source archive does not go through `sign`, which has no field for it -- but it does not
+need the Hub form either. `PATCH /api/v5/addons/addon/<slug>/versions/<id>/` takes `source` as
+multipart, and `release_notes` and `approval_notes` as JSON. **Two requests, not one:** a
+multipart body cannot carry the `{lang-code: value}` object a localised field wants, and
+sending it as a string comes back `400 You must provide an object of {lang-code:value}`.
+
+Either way, the channel stops being a question anyone answers by hand.
 
 The listed history will read 0.0.8, then 0.0.16, with a seven-number hole. That hole is the
 record of this and it is not worth hiding.
@@ -226,11 +245,12 @@ try-out build its own number and submit the next one.
 
 ## After it is listed
 
-Releasing an update is then three steps:
+Releasing an update is then four steps, and the fourth is not optional:
 
-1. Bump `version` in `package.json`, build, package.
-2. Upload the new zip to the existing listing, plus the matching source archive.
-3. Write the version notes.
+1. Bump `version` in `package.json`, `pnpm check` (which builds).
+2. `pnpm sign:listed`.
+3. Attach the source archive and the release notes to the new version.
+4. `pnpm amo:status`, and read the channel column.
 
 Firefox picks it up for everyone who installed it, on its own schedule, with no action from
 them. That is the whole reason for going through review.

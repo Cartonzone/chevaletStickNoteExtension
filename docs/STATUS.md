@@ -1,17 +1,30 @@
 # Status — v0.0.16, 8 September 2026
 
-**0.0.16 is the store submission. 0.0.14 is the identical build, signed for hand-install.**
+**0.0.16 is live on addons.mozilla.org.** Confirmed from the server, not from a page:
 
-## The thing to know before anything else
+```
+$ pnpm amo:status
+  0.0.16     listed      public              2026-09-08 <- reaches store users
+  0.0.8      listed      public              2026-09-04 <- reaches store users
+```
 
-**0.0.9 through 0.0.13 reached nobody.** They were signed through AMO's *unlisted* channel,
-which produces an installable file and nothing else, and pushed to GitHub, which Firefox does
-not read. Everyone who installed from the store has been on **0.0.8** the whole time.
+Firefox updates everyone who installed from the store, on its own schedule. It is the first
+version to reach them since 0.0.8, and it carries eight releases of change in one update --
+`CHANGELOG.md` is written for those people.
 
-**0.0.16 is the build meant for a listed upload**, and it carries eight versions of change to a
-store user in one update. `CHANGELOG.md` is written for them.
+## How eight releases piled up
 
-**0.0.15 was that build, and it missed.** Fixing `tools/sign.mjs` closed only one of the two
+**0.0.9 through 0.0.15 reached nobody.** Seven versions, built, signed, tagged and pushed, and
+every store user stayed on 0.0.8 throughout. The channel is chosen in two places and we got it
+wrong in both: `tools/sign.mjs` defaulted to *unlisted*, and when that was fixed, the Developer
+Hub's upload form asked again -- on its own page, before the file -- and *On your own* took
+0.0.15 to the same place.
+
+Three misses in a row, each invisible until someone read a small badge on a busy page. The
+answer was not to read harder: `pnpm amo:status` asks AMO which channel each version is in and
+prints it. `docs/PUBLISHING.md` opens with the whole story.
+
+**0.0.15 was the second miss.** Fixing `tools/sign.mjs` closed only one of the two
 places the channel is chosen: the Developer Hub's upload form asks again, on its own page,
 before it asks for the file, and *On your own* is unlisted. So 0.0.15 landed under **Other
 versions** with a `Self` badge instead of under **Listed versions**, and the sidebar still
@@ -31,7 +44,8 @@ what it said first.
 
 ## What 0.0.16 changed
 
-Nothing. It is 0.0.14, on its second attempt at the channel that reaches people.
+Nothing in the product. It is 0.0.14's code, on its second attempt at the channel that reaches
+people, plus `tools/amo-status.mjs` so there is never a fourth.
 
 ## What 0.0.14 changed
 

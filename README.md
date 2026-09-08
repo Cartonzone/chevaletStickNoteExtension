@@ -8,16 +8,17 @@ next week and open the same URL: the note is still there, in the same place.
 
 Firefox extension. Offline, private, and yours to export.
 
-> **Status: 0.0.16, which is 0.0.14's code, for the store. The store is still on 0.0.8.**
+> **Status: 0.0.16, live on
+> [addons.mozilla.org](https://addons.mozilla.org/en-US/firefox/addon/chevalet-note/).**
 >
-> This line said "awaiting review" for five releases and was wrong for all of them: the listing
-> was approved at 0.0.8, and 0.0.9 to 0.0.15 all went through the *unlisted* channel -- the
-> first five and 0.0.14 from the signing script's default, 0.0.15 from a radio button on the
-> upload form. Firefox does not read GitHub, so nobody who installed from the store has
-> received any of them. [`CHANGELOG.md`](CHANGELOG.md) opens with that, and
-> [`docs/PUBLISHING.md`](docs/PUBLISHING.md) has the two commands that differ.
+> This line said "awaiting review" for five releases and was wrong for all of them. The
+> listing was approved at 0.0.8, and 0.0.9 to 0.0.15 all went to the *unlisted* channel --
+> the first six from the signing script's default, 0.0.15 from a radio button on the upload
+> form -- so no store user received any of them. `pnpm amo:status` now prints the channel of
+> every version straight from AMO, which is the check that was missing.
+> [`CHANGELOG.md`](CHANGELOG.md) opens with the whole story.
 >
-> A signed build is installable by hand from the
+> A signed build is also installable by hand from the
 > [releases page](https://github.com/Chevalet/chevaletStickNoteExtension/releases). The
 > de-risking spikes are all runnable — see [`docs/spikes.md`](docs/spikes.md).
 
