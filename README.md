@@ -19,9 +19,15 @@ Firefox extension. Offline, private, and yours to export.
 
 **It barely touches the page.** One element is added to `<body>`, with a closed shadow root and
 `all: initial`. Every pixel not covered by a note hit-tests straight through, so the site stays
-completely usable. There are no document-level `pointermove`/`keydown`/`click` listeners, no
-whole-document `MutationObserver`, and no timers running when nothing is animating — an idle
-tab with notes on it costs **0% CPU**.
+completely usable. There is no `pointermove` listener on the page, no whole-document
+`MutationObserver`, and no timers running when nothing is animating — an idle tab with notes on
+it costs **0% CPU**.
+
+The page-level listeners it does add, once a note exists and not before: `keydown`, `keyup`,
+`pointerdown` and `blur` for hold-Alt, and `pagehide`/`pageshow` for saving and the bfcache.
+All passive, none calling `preventDefault`. That list used to say "no `keydown` listeners"
+either, which stopped being true the day hold-Alt landed — a sentence in a README does not
+notice when the code moves under it.
 
 That element used to be appended to `<html>`, on the reasoning that a child of the root is the
 hardest place for a page to disturb. It cost three releases: Gecko will not run an editing

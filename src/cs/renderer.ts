@@ -729,37 +729,114 @@ function cycleFocus(): void {
 }
 
 /**
- * Hold Alt to see through the notes.
+ * Hold Alt to see through the notes -- and, far more importantly, let go of Alt and get them
+ * back.
  *
- * Two listeners on someone else's window, which is a cost this project counts: both are
- * passive, neither calls `preventDefault`, and they do nothing at all until a note exists --
- * `mount()` is what arms them. The alternative was a setting nobody would find for a gesture
- * that has to be momentary to be useful.
+ * ## The bug this shape exists to prevent
  *
- * `blur` matters as much as `keyup`: Alt+Tab away with the key down and the keyup never
- * arrives, so the notes would stay ghosted until the next Alt press. Anyone who has held a
- * modifier in a browser and watched an interface stick knows what that feels like.
+ * Reported, and it was mine: "sometimes when creating or refreshing, the notes go transparent
+ * and you cannot do anything with them, and you have to refresh." That IS this feature, stuck
+ * on. Ghosted notes are translucent and `pointer-events: none`, which is exactly what an
+ * unusable note looks like.
+ *
+ * The first version listened for `keydown` and `keyup` and trusted the pair to arrive. On
+ * Windows they do not: pressing Alt alone reaches for the menu bar, and focus can leave the
+ * page between the two events -- so the keyup is delivered to browser chrome and the page
+ * never hears it. The gesture then stays on for the life of the page. Worse, the way to MAKE a
+ * note is Alt + double-click, so the reported "when creating" was not a coincidence: creating
+ * a note is the one action that guarantees the key is held.
+ *
+ * ## So the state is derived, not tracked
+ *
+ * `keydown` and `keyup` still drive it, because they are instant. But every event this file
+ * sees also carries `altKey`, which is the truth at that moment -- so any event with the ghost
+ * on and `altKey` false turns it off. A lost keyup then heals at the very next thing the
+ * person does, which is the moment they would notice anything was wrong.
+ *
+ * ## What it costs the page
+ *
+ * Four listeners on `window`, all passive, none calling `preventDefault`, and none attached
+ * until a note actually exists -- `mount()` arms them. Deliberately NOT `pointermove`: a
+ * listener that runs on every mouse movement over someone else's page is the kind of cost this
+ * project refuses. `pointerdown` fires when a person tries to use a stuck note, which is the
+ * only moment that matters.
  */
 let ghostArmed = false;
+let ghostOn = false;
 
 function armGhost(): void {
   if (ghostArmed) return;
   ghostArmed = true;
+
   const set = (on: boolean): void => {
+    if (on === ghostOn) return;
+    ghostOn = on;
     // One attribute on the host, which `:host([data-ghost])` in the stylesheet was written for
     // and nothing had ever set. Covers both layers at once.
     if (on) host?.rootEl.setAttribute('data-ghost', '');
     else host?.rootEl.removeAttribute('data-ghost');
   };
+
+  /** Any event at all is a chance to notice the key is no longer down. */
+  const correct = (e: KeyboardEvent | PointerEvent | MouseEvent): void => {
+    if (ghostOn && !e.altKey) set(false);
+  };
+
+  /*
+   * HELD, not merely pressed. A quarter of a second before anything fades.
+   *
+   * Alt is also half of the gesture that MAKES a note -- Alt + double-click -- so without a
+   * delay every note anyone creates is preceded by the whole page's notes flashing
+   * translucent. That flash is a large part of what the bug report described as happening
+   * "when creating", and it would still be there after the stuck-state fix.
+   *
+   * 250 ms is comfortably longer than reaching for a double-click and comfortably shorter than
+   * a deliberate "let me see what is under this".
+   */
+  let holdTimer = 0;
+  const cancelHold = (): void => {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = 0;
+  };
+
   window.addEventListener('keydown', (e) => {
     // Not while typing in a note: Alt is part of plenty of chords, and a note that faded
     // while you reached for one would be absurd.
-    if (e.key === 'Alt' && !e.repeat && !isEditingSomewhere()) set(true);
+    if (e.key === 'Alt' && !e.repeat && !isEditingSomewhere()) {
+      if (!holdTimer && !ghostOn) holdTimer = self.setTimeout(() => set(true), 250);
+      return;
+    }
+    cancelHold();
+    correct(e);
   });
   window.addEventListener('keyup', (e) => {
-    if (e.key === 'Alt') set(false);
+    if (e.key === 'Alt') {
+      cancelHold();
+      set(false);
+    } else correct(e);
   });
-  window.addEventListener('blur', () => set(false));
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      // A click means this was a gesture, not a peek.
+      cancelHold();
+      correct(e);
+    },
+    true,
+  );
+  // Both, because they answer different questions: `blur` is "this window lost focus", and
+  // `visibilitychange` is "this tab is not on screen". Alt+Tab fires the first; switching tabs
+  // fires the second.
+  window.addEventListener('blur', () => {
+    cancelHold();
+    set(false);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      cancelHold();
+      set(false);
+    }
+  });
 }
 
 /** Is a note's body focused? Then the modifier belongs to whatever is being typed. */

@@ -99,8 +99,18 @@ try {
     "window.__alt = 0; window.addEventListener('keydown', (e) => { if (e.key === 'Alt') window.__alt++; }, true);",
   );
   await d.actions().keyDown(Key.ALT).perform();
-  await d.sleep(400);
+  await d.sleep(120);
   check('the page sees the Alt keydown at all', (await d.executeScript('return window.__alt')) > 0);
+  /*
+   * Nothing yet: it is a HOLD, not a press. Alt is also half of Alt + double-click, so without
+   * a delay every note anyone creates would be preceded by the page's notes flashing
+   * translucent -- which is part of what the bug report described as happening "when creating".
+   */
+  check(
+    'a brief Alt does not fade anything, because it is a hold',
+    (await owner(INSIDE.x, INSIDE.y)).startsWith('chevalet'),
+  );
+  await d.sleep(400);
 
   const held = await owner(INSIDE.x, INSIDE.y);
   check('with Alt held, the page under the note is reachable', !held.startsWith('chevalet'), held);
@@ -124,6 +134,54 @@ try {
     (await owner(INSIDE.x, INSIDE.y)).startsWith('chevalet'),
   );
   await d.actions().keyUp(Key.ALT).perform();
+
+  /*
+   * THE REPORTED BUG: "sometimes the notes go transparent and you cannot do anything with
+   * them, and you have to refresh."
+   *
+   * That is this feature stuck on. The first version trusted `keydown`/`keyup` to arrive in
+   * pairs, and on Windows they do not: pressing Alt reaches for the menu bar, so the keyup can
+   * be delivered to browser chrome and the page never hears it. And the way to MAKE a note is
+   * Alt + double-click, which is why the report said "when creating".
+   *
+   * So: hold Alt, never release it, and then do each of the things a person does when a note
+   * stops responding. Every one of them has to bring the notes back.
+   */
+  console.log('');
+
+  const stuck = async () => {
+    await d.actions().keyDown(Key.ALT).perform();
+    await d.sleep(250);
+    return !(await owner(INSIDE.x, INSIDE.y)).startsWith('chevalet');
+  };
+
+  const recoveries = [
+    [
+      'a click on the page',
+      () =>
+        d.executeScript(
+          "document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, altKey: false }))",
+        ),
+    ],
+    [
+      'typing anything',
+      () =>
+        d.executeScript(
+          "window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', altKey: false }))",
+        ),
+    ],
+    ['the window losing focus', () => d.executeScript('window.dispatchEvent(new Event("blur"))')],
+  ];
+
+  for (const [what, recover] of recoveries) {
+    check(`Alt held with no keyup ghosts the notes (${what})`, await stuck());
+    await recover();
+    await d.sleep(300);
+    check(`and ${what} brings them back`, (await owner(INSIDE.x, INSIDE.y)).startsWith('chevalet'));
+    await d.actions().keyUp(Key.ALT).perform();
+    await d.sleep(200);
+  }
+
 
   console.log('\n  spikes/shots/ghost-off.png, ghost-on.png');
   if (results.some(([, ok]) => !ok)) process.exitCode = 3;
