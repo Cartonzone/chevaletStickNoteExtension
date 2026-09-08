@@ -1,5 +1,36 @@
 /**
- * Sign a build through AMO's unlisted channel, so it installs permanently.
+ * Sign a build through AMO. Two channels, and the difference decides who gets it.
+ *
+ *     node tools/sign.mjs              unlisted -- an .xpi to install by hand
+ *     node tools/sign.mjs --listed     the store, for everyone, after a human review
+ *
+ * ## The distinction that caught us out
+ *
+ * Five versions -- 0.0.9 through 0.0.13 -- were signed UNLISTED and pushed to GitHub, and none
+ * of them reached a single user of the store. The Developer Hub showed exactly that and it
+ * took a person reading the page to notice: "Listed Version: 0.0.8", five rows marked *Self*
+ * underneath. A GitHub release is a place to download a file from; it is not a distribution
+ * channel, and Firefox will never update anybody from it.
+ *
+ * So: to give the people who installed from addons.mozilla.org a new version, it has to go
+ * through `--listed`. Nothing else does, no matter how many tags exist.
+ *
+ * **A version number can only ever be used once, across BOTH channels.** 0.0.9 to 0.0.13 are
+ * spent -- AMO will refuse them for a listed upload -- so a listed submission has to carry a
+ * number none of them used.
+ *
+ * ## What --listed costs
+ *
+ * A human review, which is days rather than minutes, because the code is bundled and a
+ * reviewer needs the source. Upload the source archive alongside it:
+ *
+ *     git archive --format=zip --prefix=chevalet-note/ -o web-ext-artifacts/source-<v>.zip v<v>
+ *
+ * `web-ext sign --channel listed` submits the package; the source archive still goes through
+ * the Developer Hub form, because the API has no field for it. `docs/PUBLISHING.md` has the
+ * rest of what that form asks for.
+ *
+ * ## And the original reason this file exists
  *
  * Why this exists: an unsigned add-on can only be loaded temporarily, and it disappears when
  * Firefox closes. `xpinstall.signatures.required=false` is the answer the internet gives and it
@@ -70,8 +101,18 @@ if (built !== version) {
   );
 }
 
-console.log(`\nsigning ${pkg.name} ${version} through the unlisted channel`);
-console.log('this takes a couple of minutes; AMO signs unlisted builds without a human review\n');
+const LISTED = process.argv.includes('--listed');
+const channel = LISTED ? 'listed' : 'unlisted';
+
+console.log(`\nsigning ${pkg.name} ${version} through the ${channel} channel`);
+if (LISTED) {
+  console.log('This SUBMITS TO THE STORE. A human reviews it, which takes days, and when it');
+  console.log('passes, everyone who installed from addons.mozilla.org is updated by Firefox.');
+  console.log('Upload the source archive through the Developer Hub form as well.\n');
+} else {
+  console.log('this takes a couple of minutes; AMO signs unlisted builds without a human review');
+  console.log('It does NOT reach anyone who installed from the store. For that: --listed\n');
+}
 
 const issuer = secret('AMO_JWT_ISSUER');
 const secretKey = secret('AMO_JWT_SECRET');
@@ -87,7 +128,7 @@ try {
       '--artifacts-dir',
       'web-ext-artifacts',
       '--channel',
-      'unlisted',
+      channel,
       '--no-config-discovery',
     ],
     {
@@ -104,7 +145,8 @@ try {
 } catch {
   console.error(
     '\nSigning failed. The two usual reasons:\n' +
-      `  - AMO has already seen version ${version}. Bump it, rebuild, run this again.\n` +
+      `  - AMO has already seen version ${version}, in EITHER channel. Bump it, rebuild, run\n` +
+      '    this again. Numbers are spent globally, not per channel.\n' +
       '  - The API key is wrong or expired. Make a fresh one at the URL above.\n' +
       'Anything else: the output above is from web-ext and says what AMO objected to.\n',
   );

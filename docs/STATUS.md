@@ -1,6 +1,34 @@
-# Status — v0.0.13, 6 September 2026
+# Status — v0.0.14, 8 September 2026
 
-**0.0.13 is the one to install.**
+**0.0.14 is the one to install.**
+
+## The thing to know before anything else
+
+**0.0.9 through 0.0.13 reached nobody.** They were signed through AMO's *unlisted* channel,
+which produces an installable file and nothing else, and pushed to GitHub, which Firefox does
+not read. Everyone who installed from the store has been on **0.0.8** the whole time.
+
+0.0.14 is the first build since then meant for a **listed** upload, and it therefore carries
+six versions of change to a store user in one update. `CHANGELOG.md` is written for them.
+`docs/PUBLISHING.md` opens with the mistake and the two commands that differ.
+
+Those five numbers cannot be reused: AMO spends a version globally, across both channels. The
+listed history will read 0.0.8, then 0.0.14.
+
+## What 0.0.14 changed
+
+- **The notes going transparent and unresponsive** — reported as *"sometimes when creating or
+  refreshing, and you have to reload the page"* — was hold-Alt stuck on. Mine, from 0.0.12. It
+  trusted `keydown`/`keyup` to pair, and on Windows they do not: Alt reaches for the menu bar,
+  so the keyup can go to browser chrome and the page never hears it. Since the way to *make* a
+  note is Alt + double-click, it clustered exactly where the report said.
+
+  Four independent ways out now — a click, any keystroke, `blur`, the tab being hidden — plus a
+  250 ms hold before it engages, so creating a note no longer flashes every other note
+  translucent. `spikes/firefox-ghost.mjs` grew from 5 checks to 12, three of which reproduce the
+  reported scenario (Alt down, no keyup ever) and then recover from it.
+- **`CHANGELOG.md`**, which did not exist, because a store user on 0.0.8 needs to be told what
+  six versions did and the commit subjects are not written for them.
 
 ## What 0.0.13 changed
 
@@ -16,11 +44,11 @@
   per string, so one can arrive half-finished and be useful. Three steps, written at the top of
   `src/shared/i18n.ts`.
 
-## What 0.0.12 changed Two reported bugs, a language, and the four dead scope kinds
-turned into a feature. 0.0.11 is what fixed the note-losing bug below; this adds what was still
-missing around it.
-
 ## What 0.0.12 changed
+
+Two reported bugs, a language, and the four dead scope kinds turned into a feature. 0.0.11 is
+what fixed the note-losing bug below; this adds what was still missing around it.
+
 
 - **Check for update stuck on "Checking…" forever.** The options page asked the BACKGROUND to
   request the host permission, passing a `fromClick: true` flag in the belief that it carried
@@ -69,7 +97,7 @@ work, the product needs it more.
 
 | | What it answers |
 |---|---|
-| `tests/` — 736 checks | Everything that reduces to a number |
+| `tests/` — 746 checks | Everything that reduces to a number |
 | `spikes/firefox-extension.mjs` | **The real extension, over a real page.** Nine checks. `pnpm build:test` writes `dist-test/` — the shipped build plus one manifest line, so a driver has host access without a click in browser chrome |
 | `spikes/firefox-persist.mjs` | Type, reload, is it there? Restore the bug and it prints NO |
 | `spikes/firefox-pages.mjs` | **The extension's own pages**, driven: the options page, the cabinet, the popup. Thirteen checks, including editing a note the page made. Getting to a `moz-extension://` URL took three refusals from Marionette and its own `geckodriver --allow-system-access`; the UUID comes out of the profile |

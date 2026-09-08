@@ -3,6 +3,43 @@
 Everything the store needs, in the order it asks for it. Nothing here costs money: AMO is free
 to publish on and free to be listed on.
 
+## Read this first: a tag on GitHub reaches nobody
+
+**Five versions were released to nobody.** 0.0.9, 0.0.10, 0.0.11, 0.0.12 and 0.0.13 were each
+built, signed, tagged and pushed over four days, and every person who installed Chevalet Note
+from the store stayed on **0.0.8** the entire time. The Developer Hub said so plainly on the
+page we uploaded from: *Listed Version: 0.0.8*, with five rows underneath marked **Self**. It
+took a person reading that page to notice.
+
+Two separate mistakes, and it is worth naming both because either one alone is enough:
+
+1. **`tools/sign.mjs` signed through the UNLISTED channel** -- correctly, that is what it was
+   written for, back when the listing was still in the review queue and the point was to get an
+   installable file today. Nobody revisited it after the listing was approved.
+2. **A GitHub release is a place to download a file from.** It is not a distribution channel.
+   Firefox updates an add-on from AMO and from nowhere else, so a tag, a release page and an
+   attached `.xpi` change nothing for anyone who is not standing at that page with the intent
+   to install by hand.
+
+So: **the only way to give an existing user a new version is a LISTED upload.** Everything
+below about review times and source archives is the price of that, and there is no way around
+it.
+
+```bash
+pnpm sign:listed     # the store. days of review. everyone gets it.
+pnpm sign            # an .xpi for yourself. minutes. nobody else gets it.
+```
+
+### Those five numbers are gone
+
+**A version number is spent globally, across both channels.** AMO will refuse 0.0.9 through
+0.0.13 for a listed upload because it has already signed them, unlisted. They cannot be
+reclaimed and there is no way to release them to the store retroactively.
+
+Which is only a bookkeeping cost -- the code in 0.0.13 goes out as 0.0.14 -- but it means the
+listed history will read 0.0.8 then 0.0.14, with a five-number hole. That hole is the record of
+this mistake and it is not worth hiding.
+
 ## Listed or unlisted — pick this first, it changes everything
 
 | | **Listed** | **Unlisted** |
@@ -14,8 +51,13 @@ to publish on and free to be listed on.
 | Signing | AMO signs it | AMO signs it |
 
 **Listed is what we want.** It is the only route where updates simply happen for whoever
-installed it, and it is why the update-check button in the settings exists only as a stopgap:
-once this is listed, that button becomes redundant and can go.
+installed it.
+
+The update-check button in the settings was written as a stopgap for the review queue and it
+outlived its purpose in a way nobody noticed: it reads the **GitHub releases** API, so through
+all five unlisted versions it was the only thing in the product telling anyone a new version
+existed, and it is off by default. It stays for people running an unlisted build by hand, but
+it is not how the store audience is served and it never was.
 
 Nothing needs `update_url` in the manifest for a listed add-on. Do not add one — for a listed
 extension AMO rejects it.
@@ -130,13 +172,19 @@ Keep it short and factual. A draft:
 > DOM with `createElement`/`textContent`. `innerHTML` is never assigned anywhere in the
 > codebase, so there is no HTML sanitiser to audit.
 
-## Signing a build for yourself, before the listing clears
+## Signing a build for yourself
 
-`tools/sign.mjs` puts a build through AMO's **unlisted** channel, which signs automatically in
-a couple of minutes with no human review, so it can be installed permanently in an ordinary
-Firefox while the store listing is still in the queue. An add-on can carry versions in both
-channels, so this does not disturb the listed submission — but AMO will not accept a version
-number it has already seen in *either* channel, so the two cannot share one.
+`pnpm sign` puts a build through AMO's **unlisted** channel: signed automatically in a couple
+of minutes, no human review, installs permanently in an ordinary Firefox. That is what it is
+for and it is genuinely useful -- a fix can be in your own browser fifteen minutes after it is
+written, instead of next week.
+
+What it is not is a release. Read the section at the top of this page before reaching for it.
+
+An add-on can carry versions in both channels at once, so an unlisted build does not disturb
+the listed submission. It does **spend the version number**, in both channels, permanently. So
+if a build is meant for the store, do not sign it unlisted first "just to try it" -- give the
+try-out build its own number and submit the next one.
 
 ## After it is listed
 
@@ -156,19 +204,14 @@ Two things worth remembering:
 - **Review takes days, not minutes**, and the first review of a new add-on is the slowest. Do
   not schedule anything around it.
 
-## The one thing still worth doing first
+## R1 is answered, so nothing is outstanding
 
-Spike R1 — whether a content script's `beforeunload` actually produces a dialog on tab close —
-is still open, and it cannot be automated. `spikes/firefox-r1.mjs` builds a probe add-on,
-installs it in a real Firefox and closes a tab, and reports **no dialog for both trials
-including the control**, where the page arms its own `beforeunload`. A failed control means a
-useless measurement: WebDriver's Close Window command does not run unload prompts at all. The
-spike stays in the repo, with its control, so nobody repeats the approach.
+This page used to end with an open question: does a content script's `beforeunload` actually
+produce a dialog when the tab is closed? It was the last unknown in the project and it blocked
+nothing, but the close-guard wording depended on it.
 
-So it needs thirty seconds of a human: make a note, type in it, press Ctrl+W — then repeat with
-a hand-armed `beforeunload` in the page's console as a control. `docs/spikes.md` has the
-procedure and a table for reading the result.
-
-This does **not** block submission. The setting already describes itself as best-effort, which
-is honest whichever way the answer falls. But if a content script's `beforeunload` turns out to
-be ignored, the wording should be firmed up before strangers read it.
+**Yes.** Firefox 155 on Windows: a note, some typing, Ctrl+W, and Firefox asks. Confirmed by
+hand in September 2026 because no harness here could do it -- WebDriver's Close Window command
+does not run unload prompts, and Marionette does not open the tab-modal prompt on navigation
+either. Both spikes stay in the repo with their failing controls so nobody spends another
+afternoon on the approach. `src/cs/guard.ts` and `tests/cs-guard.test.ts` carry the detail.

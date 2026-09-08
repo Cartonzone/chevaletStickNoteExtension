@@ -8,10 +8,17 @@ next week and open the same URL: the note is still there, in the same place.
 
 Firefox extension. Offline, private, and yours to export.
 
-> **Status: 0.0.13, awaiting review on addons.mozilla.org.** A signed build is installable
-> now from the [releases page](https://github.com/Chevalet/chevaletStickNoteExtension/releases);
-> once the listing clears review, Firefox will update it for you on its own. The de-risking
-> spikes are still runnable — see [`docs/spikes.md`](docs/spikes.md).
+> **Status: 0.0.14. The store is on 0.0.8 and 0.0.14 is what should replace it.**
+>
+> This line said "awaiting review" for five releases and was wrong for all of them: the listing
+> was approved at 0.0.8, and 0.0.9 to 0.0.13 were signed through the *unlisted* channel and
+> published here, which Firefox does not read. Nobody who installed from the store received any
+> of them. [`CHANGELOG.md`](CHANGELOG.md) opens with that, and
+> [`docs/PUBLISHING.md`](docs/PUBLISHING.md) has the two commands that differ.
+>
+> A signed build is installable by hand from the
+> [releases page](https://github.com/Chevalet/chevaletStickNoteExtension/releases). The
+> de-risking spikes are all runnable — see [`docs/spikes.md`](docs/spikes.md).
 
 ---
 
@@ -23,11 +30,20 @@ completely usable. There is no `pointermove` listener on the page, no whole-docu
 `MutationObserver`, and no timers running when nothing is animating — an idle tab with notes on
 it costs **0% CPU**.
 
-The page-level listeners it does add, once a note exists and not before: `keydown`, `keyup`,
-`pointerdown` and `blur` for hold-Alt, and `pagehide`/`pageshow` for saving and the bfcache.
-All passive, none calling `preventDefault`. That list used to say "no `keydown` listeners"
-either, which stopped being true the day hold-Alt landed — a sentence in a README does not
-notice when the code moves under it.
+The page-level listeners, counted rather than remembered — `grep -n "addEventListener("
+src/cs/renderer.ts src/cs/guard.ts` is the whole list, and none of them calls `preventDefault`:
+
+| Added | What |
+|---|---|
+| Whenever the content script runs, which is only on an origin you granted | `pageshow`, `pagehide`, `visibilitychange` — saving, and the bfcache |
+| Once the site is enabled and the notes for the URL are known | `dblclick` — Alt + double-click makes a note, so it has to work before the first one exists |
+| Once a note exists on the page, and not before | `keydown`, `keyup`, `pointerdown`, `blur`, `visibilitychange` — hold-Alt |
+| Only while a note has unsaved text | `beforeunload` — removed the moment it saves, so the page stays eligible for the bfcache |
+
+That paragraph used to say "no `keydown` listeners", which stopped being true the day hold-Alt
+landed; then it said all of them arrived "once a note exists", which was never true of the four
+that have to be there before the first note. A sentence in a README does not notice when the
+code moves under it, which is why this one is now a table anyone can check in one command.
 
 That element used to be appended to `<html>`, on the reasoning that a child of the root is the
 hardest place for a page to disturb. It cost three releases: Gecko will not run an editing
