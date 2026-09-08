@@ -15,9 +15,13 @@
  * So: to give the people who installed from addons.mozilla.org a new version, it has to go
  * through `--listed`. Nothing else does, no matter how many tags exist.
  *
- * **A version number can only ever be used once, across BOTH channels.** 0.0.9 to 0.0.13 are
+ * **A version number can only ever be used once, across BOTH channels.** 0.0.9 to 0.0.14 are
  * spent -- AMO will refuse them for a listed upload -- so a listed submission has to carry a
  * number none of them used.
+ *
+ * 0.0.14 is on that list on purpose, and it is the trade-off in one release: the ghost-notes
+ * fix had to be installable the same day, which means unlisted, which spends the number. The
+ * identical code went to the store as 0.0.15. When both are wanted at once, budget two.
  *
  * ## What --listed costs
  *
@@ -153,8 +157,29 @@ try {
   process.exit(1);
 }
 
-console.log(
-  '\nDone. The signed .xpi is in web-ext-artifacts/.\n' +
-    'To install it permanently: open about:addons, click the gear, "Install Add-on From File",\n' +
-    'and pick that .xpi. It survives closing Firefox, and it updates itself from AMO.\n',
-);
+if (LISTED) {
+  console.log(
+    `\nSubmitted. ${version} is in the review queue. It is not on the store yet.\n` +
+      '\nStill to do by hand, or the submission stalls:\n' +
+      `  1. git archive --format=zip --prefix=chevalet-note/ -o \\n` +
+      `       web-ext-artifacts/source-${version}.zip v${version}\n` +
+      '  2. Upload that source archive through the Developer Hub. The API has no field for\n' +
+      '     it, and the build is minified, so a reviewer will ask and the days start again.\n' +
+      '  3. Paste the version notes from CHANGELOG.md.\n' +
+      '\nWhen it passes, Firefox updates everyone who installed from the store, on its own.\n',
+  );
+} else {
+  /*
+   * This used to end "and it updates itself from AMO", which was false, and it is the sentence
+   * that made five unlisted builds look like releases. An unlisted package carries no
+   * `update_url` -- AMO rejects one on a listed add-on -- so Firefox has nowhere to look.
+   */
+  console.log(
+    '\nDone. The signed .xpi is in web-ext-artifacts/.\n' +
+      'To install it permanently: open about:addons, click the gear, "Install Add-on From\n' +
+      'File", and pick that .xpi. It survives closing Firefox.\n' +
+      '\nIt does NOT update itself, and installing it takes the add-on off the store copy\n' +
+      'until a listed release overtakes this version number. It reaches you and nobody else.\n' +
+      'For everyone else there is one route: pnpm sign:listed\n',
+  );
+}

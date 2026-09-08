@@ -8,10 +8,10 @@ next week and open the same URL: the note is still there, in the same place.
 
 Firefox extension. Offline, private, and yours to export.
 
-> **Status: 0.0.14. The store is on 0.0.8 and 0.0.14 is what should replace it.**
+> **Status: 0.0.15, which is 0.0.14's code submitted to the store. The store is on 0.0.8.**
 >
 > This line said "awaiting review" for five releases and was wrong for all of them: the listing
-> was approved at 0.0.8, and 0.0.9 to 0.0.13 were signed through the *unlisted* channel and
+> was approved at 0.0.8, and 0.0.9 to 0.0.14 were signed through the *unlisted* channel and
 > published here, which Firefox does not read. Nobody who installed from the store received any
 > of them. [`CHANGELOG.md`](CHANGELOG.md) opens with that, and
 > [`docs/PUBLISHING.md`](docs/PUBLISHING.md) has the two commands that differ.

@@ -3,24 +3,35 @@
 Written for the person installing it, not for the person who wrote it. Dates are the release
 date; the version notes on addons.mozilla.org are copied from here.
 
-## The store skips from 0.0.8 to 0.0.14, and here is why
+## The store skips from 0.0.8 to 0.0.15, and here is why
 
 If you installed Chevalet Note from addons.mozilla.org you are on **0.0.8**, and five versions
 appeared on GitHub over the following four days without your browser ever offering you one of
 them. That was a mistake at this end, not at yours.
 
-Firefox updates an add-on from the store and from nowhere else. Those five builds were signed
+Firefox updates an add-on from the store and from nowhere else. Those builds were signed
 through Mozilla's *unlisted* channel — which produces a file you can install by hand, and
 nothing more — so none of them ever reached the store. A version number cannot be reused once
 Mozilla has signed it, in either channel, so those five are spent and cannot be re-released.
 
-**0.0.14 is all six of them at once**, published properly. Everything below happened between
+**0.0.15 is all seven of them at once**, published properly. Everything below happened between
 0.0.8 and now; it is grouped by the version it was written in, because that is the honest
 record, but as far as the store is concerned it arrives in one update.
 
 ---
 
+## 0.0.15 — 8 September 2026
+
+**The same code as 0.0.14, submitted the right way.**
+
+There is no difference in what it does. 0.0.14 was signed unlisted so the fix below could be
+installed by hand the day it was written, and that spends the number permanently -- Mozilla
+will not sign 0.0.14 again in any channel. So the store copy needs its own, and this is it. The
+next release will not need two.
+
 ## 0.0.14 — 8 September 2026
+
+Hand-install only; see above.
 
 **Notes going transparent and unusable, needing a page refresh.** Holding Alt makes the notes
 on a page translucent and lets you read and click what is underneath, which is a feature — but

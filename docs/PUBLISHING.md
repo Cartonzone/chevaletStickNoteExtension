@@ -33,12 +33,16 @@ pnpm sign            # an .xpi for yourself. minutes. nobody else gets it.
 ### Those five numbers are gone
 
 **A version number is spent globally, across both channels.** AMO will refuse 0.0.9 through
-0.0.13 for a listed upload because it has already signed them, unlisted. They cannot be
-reclaimed and there is no way to release them to the store retroactively.
+**0.0.14** for a listed upload because it has already signed every one of them, unlisted. They
+cannot be reclaimed and there is no way to release them to the store retroactively.
 
-Which is only a bookkeeping cost -- the code in 0.0.13 goes out as 0.0.14 -- but it means the
-listed history will read 0.0.8 then 0.0.14, with a five-number hole. That hole is the record of
-this mistake and it is not worth hiding.
+0.0.14 is on that list deliberately, and it is the shape of the problem in one release: the
+ghost-notes fix had to be installable the same day, which means unlisted, which spends the
+number. So the identical code goes to the store as **0.0.15**. Whenever both are wanted at
+once, budget two numbers -- or sign listed first and wait.
+
+The listed history will read 0.0.8, then 0.0.15, with a six-number hole. That hole is the
+record of this mistake and it is not worth hiding.
 
 ## Listed or unlisted — pick this first, it changes everything
 
