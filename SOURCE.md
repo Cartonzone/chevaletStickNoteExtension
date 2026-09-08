@@ -33,7 +33,7 @@ pnpm package        # writes artifacts/chevalet_note-<version>.zip
 ## Verifying the result
 
 ```bash
-pnpm check          # typecheck, lint, 200+ unit tests, and web-ext lint on dist/
+pnpm check          # typecheck, lint, 746 unit tests, and web-ext lint on dist/
 ```
 
 `web-ext lint` must report **0 errors, 0 warnings, 0 notices**. That is enforced in CI with
@@ -54,12 +54,31 @@ The build is deterministic. Two runs of `pnpm build` from the same commit produc
   (`src/shared/i18n.ts` and `src/manifest.ts`) rather than hand-maintained, so they cannot
   disagree with the code.
 
-To confirm:
+To confirm, twice from the same tree:
 
 ```bash
 pnpm build && cp -r dist dist-a
 pnpm build && diff -r dist-a dist && echo "identical"
 ```
+
+### Confirmed from the submitted archive, not just claimed
+
+The stronger check is the one a reviewer would actually do -- unpack the attached source
+archive somewhere else, install and build it there, and compare the result against the package
+that was submitted. Done for 0.0.15, and it reports **identical**:
+
+```bash
+unzip -q source-0.0.15.zip && cd chevalet-note
+pnpm install --frozen-lockfile
+node --experimental-strip-types build.ts
+diff -rq dist /path/to/the/repository/dist   # no output
+```
+
+One trap, Windows only: unpack to a **short path**. The first attempt used a directory nested
+deep enough that `node_modules/.pnpm/@esbuild+win32-x64@0.25.12/node_modules/@esbuild/
+win32-x64/esbuild.exe` crossed 260 characters, and esbuild failed with `spawn ... ENOENT` for a
+file `ls` showed sitting right there, 10 MB and executable. Nothing to do with the archive --
+`C:\Users\<you>\sb` builds it first time.
 
 ## What each bundle is
 
