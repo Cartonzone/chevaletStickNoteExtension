@@ -638,12 +638,33 @@ export const SHEET_CSS = /* css */ `
  * alone, spikes/firefox-ghost.mjs reports the note still owns the point.
  */
 :host([data-ghost]) .note {
-  pointer-events: none;
   opacity: .28;
   transition: opacity 90ms linear;
 }
 @media (prefers-reduced-motion: reduce) {
   :host([data-ghost]) .note { transition: none; }
+}
+
+/*
+ * Two reasons for a note to stop taking the pointer, one rule.
+ *
+ *   data-ghost   Alt is held: the page underneath is being read, and clicked.
+ *   data-probe   the renderer is asking the page what is under a point a note is covering,
+ *                which is how a note that has just been dropped is re-anchored to what it
+ *                landed on. Set and cleared inside one task, so nothing is ever painted
+ *                with it on -- the opacity above is deliberately not part of this.
+ *
+ * The DESCENDANTS matter as much as the note. Three things inside a note set
+ * pointer-events: auto on themselves -- the two resize grips, the south edge, and the ink
+ * layer while drawing -- so a rule on .note alone leaves strips of live paper along two
+ * edges, which is enough to swallow a click on a link and enough to anchor a note to our
+ * own host element.
+ */
+:host([data-ghost]) .note,
+:host([data-ghost]) .note *,
+:host([data-probe]) .note,
+:host([data-probe]) .note * {
+  pointer-events: none;
 }
 
 @media print { :host { display: none; } }

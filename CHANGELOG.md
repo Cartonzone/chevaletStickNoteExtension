@@ -20,6 +20,39 @@ record, but as far as the store is concerned it arrives in one update.
 
 ---
 
+## 0.0.17 — 15 September 2026
+
+**Notes stay where you put them.**
+
+A note you dragged somewhere went back to where you made it the next time the page loaded.
+Reported as *"when i add a sticky note and place it somewhere the place of that sticky note
+not saving in that page ever"* — and that is what it looked like, but the position was being
+saved correctly all along. It was being saved, read back, and then overruled.
+
+A note remembers what it is stuck to, so that it can follow the words when a page reflows —
+an advert loads, a cookie banner appears, an article is edited. On every load it asked the
+page where that content is now, and then put the note *there*, at the content, rather than
+where you had left the paper. Since the content is usually a run of text a line or two away
+from where you dropped the note, every note drifted back to the neighbourhood it was born in,
+every single time.
+
+Now the page is asked a different question: not *where does this note belong*, but *how far
+has the thing it is stuck to moved since I last put it down*. A page that has not changed
+moves a note by nothing at all. A page that grew a banner overnight moves it down by the
+height of the banner — which is what anchoring was always for, and it still does that.
+
+And a note now re-anchors to whatever it lands on when you drop it, so dragging one next to a
+different paragraph attaches it to that paragraph.
+
+Two more things that were set and not kept, found while fixing the first:
+
+- **A locked note came back unlocked**, and
+- **a note you raised to the front dropped back behind its neighbours.** Both are stored
+  fields; neither was ever written after the note was created.
+
+Notes made before this release keep the exact position you last left them at. They pick the
+page back up — following content as it moves — the first time you move them.
+
 ## 0.0.16 — 8 September 2026
 
 **The same code again, and this time it is on the store.**

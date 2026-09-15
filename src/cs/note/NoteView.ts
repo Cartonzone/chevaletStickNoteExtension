@@ -1402,6 +1402,22 @@ export class NoteView implements Animatable {
     return this.collapsed;
   }
 
+  /**
+   * Locked, and how high it sits.
+   *
+   * Both were private with no way out, and both are stored fields -- `ui.locked` and `ui.z`
+   * were read when a note was mounted and never written again, so locking a note and raising
+   * one above its neighbours were undone by the next reload. The renderer cannot save what it
+   * cannot ask for, which is why this is a missing getter rather than a missing line there.
+   */
+  get isLocked(): boolean {
+    return this.locked;
+  }
+
+  get z(): number {
+    return this.zIndex;
+  }
+
   get styleNow(): NoteStyle {
     return this.style;
   }
@@ -1537,8 +1553,14 @@ export class NoteView implements Animatable {
   }
 
   bringToFront(): void {
-    this.zIndex = this.host.raise(this);
+    const next = this.host.raise(this);
+    // A note already on top is not raised, and this is the line that makes that matter: every
+    // click on a note comes through here, and without it each one would be a write, a bumped
+    // revision and a new "last edited" time for a note nobody edited.
+    if (next === this.zIndex) return;
+    this.zIndex = next;
     this.el.style.zIndex = String(this.zIndex);
+    this.host.onChange?.(this);
   }
 
   destroy(): void {

@@ -21,9 +21,7 @@ import {
   buildTextIndex,
   captureAt,
   captureSelection,
-  GOOD_ENOUGH,
-  ORPHAN_BELOW,
-  resolveAnchor,
+  placeNote,
 } from './anchor/index.ts';
 import { createSharedDefs } from './art/defs.ts';
 import { createHost, type Host } from './host.ts';
@@ -48,6 +46,8 @@ const lastWire = new Map<NoteId, NoteWire>();
 /** Which language the mounted notes were built in. */
 let shownLocale: '' | 'en' | 'fa' = '';
 let topZ = 10;
+/** Which note is at the front, so clicking the one already there is not a change. */
+let frontId: NoteId | null = null;
 let enabled = false;
 /**
  * The user's own default style, sparse, as sent with the handshake.
@@ -164,6 +164,7 @@ async function trashAndUnmount(id: NoteId): Promise<void> {
   views.delete(id);
   revs.delete(id);
   pending.delete(id);
+  anchoredAt.delete(id);
   await ask({ t: 'note/delete', id, soft: true });
   reportGuardState();
 }
@@ -181,6 +182,8 @@ async function ask<T>(msg: CsToBg): Promise<Reply<T>> {
 function teardown(reason: string): void {
   for (const v of views.values()) v.destroy();
   views.clear();
+  anchoredAt.clear();
+  frontId = null;
   host?.destroy();
   host = null;
   enabled = false;
@@ -271,6 +274,7 @@ async function flush(id: NoteId): Promise<void> {
     views.get(id)?.destroy();
     views.delete(id);
     revs.delete(id);
+    anchoredAt.delete(id);
   }
   reportGuardState();
 }
@@ -289,6 +293,8 @@ function mountNote(wire: NoteWire): NoteView {
   revs.set(wire.id, wire.rev);
   lastWire.set(wire.id, wire);
   const at = placeFor(wire);
+  // Where this note's anchor stands as of now, so `reanchor` can tell a drag from a restyle.
+  anchoredAt.set(wire.id, { x: at.x, y: at.y });
   const view = new NoteView(
     {
       id: wire.id,
@@ -341,12 +347,40 @@ function mountNote(wire: NoteWire): NoteView {
         }
         return reply.data.bytes;
       },
-      raise: () => ++topZ,
-      onChange: (n) =>
+      /*
+       * A note already at the front is not raised, and that matters now that raising one is
+       * a write: every click on a note comes through here, and without this each would be a
+       * stored revision and a new "last edited" time for a note nobody edited.
+       *
+       * By identity rather than by comparing z to the ceiling. Two notes CAN hold the same z
+       * -- two tabs on one URL creating at the same moment, or an import -- and comparing
+       * numbers would then leave the lower of the pair unable to be brought forward at all.
+       */
+      raise: (n) => {
+        if (frontId === wire.id && n.z === topZ) return topZ;
+        frontId = wire.id;
+        return ++topZ;
+      },
+      onChange: (n) => {
+        // The anchor travels with the paper. Only on a real move: `onChange` also fires for a
+        // resize, a collapse and every colour change, and none of those change what the note
+        // is stuck to.
+        const moved = reanchor(wire.id, n.position);
         save(wire.id, {
-          ui: { ...n.position, ...n.size, collapsed: n.isCollapsed },
+          // `z` and `locked` were missing here, and the note's own class had no getter for
+          // either -- so a locked note came back unlocked and a note raised to the front
+          // went back behind its neighbours, every reload.
+          ui: {
+            ...n.position,
+            ...n.size,
+            z: n.z,
+            collapsed: n.isCollapsed,
+            locked: n.isLocked,
+          },
           style: n.styleOverrides,
-        }),
+          ...(moved ? { anchor: moved } : {}),
+        });
+      },
       onText: (_n, text) => save(wire.id, { body: { text } }),
       onName: (_n, name) => save(wire.id, { name }),
       /*
@@ -395,6 +429,7 @@ function mountNote(wire: NoteWire): NoteView {
         views.delete(wire.id);
         revs.delete(wire.id);
         pending.delete(wire.id);
+        anchoredAt.delete(wire.id);
         void ask({ t: 'note/delete', id: wire.id, soft: true });
         reportGuardState();
       },
@@ -408,24 +443,61 @@ function mountNote(wire: NoteWire): NoteView {
 /**
  * Where a note actually goes.
  *
- * Stored coordinates are the truth when the page has not moved, but pages do move: a banner
- * appears, an ad loads, the layout reflows at a different width. So the anchor is re-resolved
- * and its answer preferred when it is confident enough, and the stored coordinates are the
- * fallback rather than the other way round. An anchor that has lost its target entirely is
- * reported, not silently trusted.
+ * The policy, and the long story behind it, is `placeNote` in `anchor/index.ts` -- it lives
+ * there so it can be exercised without a document. This is the wiring: the wire record's
+ * stored coordinates, its opaque anchor, and the real resolver.
  */
 function placeFor(wire: NoteWire): { x: number; y: number; orphan: boolean } {
-  const anchor = wire.anchor as Anchor | null;
-  if (!anchor || typeof anchor !== 'object' || !('mode' in anchor)) {
-    return { x: wire.ui.x, y: wire.ui.y, orphan: false };
-  }
+  return placeNote({ x: wire.ui.x, y: wire.ui.y }, wire.anchor);
+}
+
+/**
+ * Where each mounted note's anchor was captured, so a move can be told from a restyle.
+ *
+ * `onChange` fires for everything a note can do -- a drag, a resize, a collapse, a new
+ * colour -- and only a drag needs the document walked again. Without this, changing a note's
+ * paper would re-anchor it.
+ */
+const anchoredAt = new Map<NoteId, { x: number; y: number }>();
+
+/**
+ * Re-anchor a note that has been moved, or `null` if it has not moved.
+ *
+ * A note is stuck to what is under it, so a note dragged across the page and left anchored
+ * where it was made is stuck to something it is no longer anywhere near -- and `placeFor`
+ * would then drift it by however far that distant content moved. Dropping it somewhere is
+ * the one gesture that says "it goes HERE", so that is where it is re-anchored.
+ */
+function reanchor(id: NoteId, at: { x: number; y: number }): Anchor | null {
+  const from = anchoredAt.get(id);
+  // A spring settles on fractions of a pixel. Treating that as a move would re-walk the
+  // document every time a note came to rest.
+  if (from && Math.abs(from.x - at.x) < 1 && Math.abs(from.y - at.y) < 1) return null;
+  anchoredAt.set(id, { x: at.x, y: at.y });
+  return captureThroughNotes(at.x, at.y);
+}
+
+/**
+ * Capture an anchor at a point our own notes are covering.
+ *
+ * `captureAt` hit-tests the page -- `elementFromPoint` for the element tier,
+ * `caretPositionFromPoint` for the text tier -- and the point a note was just dropped on is,
+ * by definition, underneath that note. Events from a shadow root retarget to the host, so
+ * every one of those calls would answer "the extension's own host element" and every moved
+ * note would end up anchored to `<body>`.
+ *
+ * One attribute takes the notes out of hit testing, exactly as holding Alt does. It is set
+ * and cleared inside a single task, so there is no frame in which anything is painted with
+ * it on and no chance of it being left behind -- the failure mode that made the notes
+ * unusable in 0.0.12.
+ */
+function captureThroughNotes(x: number, y: number): Anchor {
+  const el = host?.rootEl;
+  el?.setAttribute('data-probe', '');
   try {
-    const r = resolveAnchor(anchor);
-    if (r.confidence >= GOOD_ENOUGH) return { x: r.x, y: r.y, orphan: false };
-    if (r.confidence < ORPHAN_BELOW) return { x: wire.ui.x, y: wire.ui.y, orphan: true };
-    return { x: wire.ui.x, y: wire.ui.y, orphan: false };
-  } catch {
-    return { x: wire.ui.x, y: wire.ui.y, orphan: false };
+    return captureAt(x, y);
+  } finally {
+    el?.removeAttribute('data-probe');
   }
 }
 
@@ -442,7 +514,7 @@ async function create(opts: {
   anchor?: Anchor | null;
   text?: string;
 }): Promise<NoteView | null> {
-  const anchor = opts.anchor ?? captureAt(opts.docX, opts.docY);
+  const anchor = opts.anchor ?? captureThroughNotes(opts.docX, opts.docY);
   const reply = await ask<{ note: NoteWire }>({
     t: 'note/create',
     url: location.href,
@@ -591,6 +663,7 @@ async function recheckScope(url: string): Promise<void> {
     // in the database and comes back when its own page does.
     view.destroy();
     views.delete(id);
+    anchoredAt.delete(id);
   }
   for (const wire of reply.data.notes) {
     if (!views.has(wire.id)) mountNote(wire);

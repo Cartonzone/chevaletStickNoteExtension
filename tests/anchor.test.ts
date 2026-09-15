@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest';
 import { capturePath, idConfidence, looksStable, resolvePath } from '~/cs/anchor/element.ts';
+import { captureAt, placeNote } from '~/cs/anchor/index.ts';
 import {
   buildTextIndex,
   CONTEXT_LEN,
@@ -224,5 +225,110 @@ describe('capturePath / resolvePath', () => {
     document.body.innerHTML = html;
     const path = capturePath(document.getElementById('deep') as Element);
     expect(path.length).toBeLessThanOrEqual(12);
+  });
+});
+
+/*
+ * Where a note goes when the page comes back.
+ *
+ * This is the arithmetic behind the bug reported against every release up to 0.0.16 -- a note
+ * dragged somewhere and back in its old place after a reload. `placeNote` takes its resolver
+ * as an argument precisely so the policy can be stated here, in six lines, with no layout
+ * engine involved; `spikes/firefox-place.mjs` asks the same questions of a real Firefox.
+ */
+describe('placeNote', () => {
+  const at = (x: number, y: number) => ({ x, y });
+  const anchorRef = (x: number, y: number): unknown => ({
+    mode: 'document',
+    doc: { x, y, fx: 0, fy: 0, docW: 1000, docH: 1000, dir: 'ltr' },
+    ref: { x, y },
+  });
+  const resolvedAt =
+    (x: number, y: number, confidence = 0.95) =>
+    () =>
+      ({ x, y, confidence, via: 'path' }) as never;
+
+  it('leaves a note exactly where it was left when the page has not moved', () => {
+    const place = placeNote(at(620, 900), anchorRef(100, 120), resolvedAt(100, 120));
+    expect(place).toEqual({ x: 620, y: 900, orphan: false });
+  });
+
+  it('moves it by how far its content moved, not to where its content is', () => {
+    // The banner case: everything the note is stuck to is 200px lower than it was.
+    const place = placeNote(at(620, 900), anchorRef(100, 120), resolvedAt(100, 320));
+    expect(place).toEqual({ x: 620, y: 1100, orphan: false });
+  });
+
+  it('carries a sideways reflow too', () => {
+    const place = placeNote(at(620, 900), anchorRef(100, 120), resolvedAt(40, 120));
+    expect(place).toEqual({ x: 560, y: 900, orphan: false });
+  });
+
+  it('does not move a note on an answer it only half believes', () => {
+    const place = placeNote(at(620, 900), anchorRef(100, 120), resolvedAt(100, 320, 0.5));
+    expect(place).toEqual({ x: 620, y: 900, orphan: false });
+  });
+
+  it('flags a note whose anchor is gone, and still shows it where it was', () => {
+    const place = placeNote(at(620, 900), anchorRef(100, 120), resolvedAt(0, 0, 0.1));
+    expect(place).toEqual({ x: 620, y: 900, orphan: true });
+  });
+
+  it('keeps the stored position for a note with no anchor at all', () => {
+    expect(placeNote(at(620, 900), null, resolvedAt(0, 0))).toEqual({
+      x: 620,
+      y: 900,
+      orphan: false,
+    });
+    expect(placeNote(at(620, 900), { nonsense: true }, resolvedAt(0, 0))).toEqual({
+      x: 620,
+      y: 900,
+      orphan: false,
+    });
+  });
+
+  /*
+   * The compatibility case, and the reason `ref` is optional. A note written by 0.0.16 or
+   * earlier has an anchor and no reference point, so there is nothing to measure a
+   * displacement against -- and the old code's answer, "put it where the anchor resolves",
+   * is the bug. Its own coordinates are where the person left it.
+   */
+  it('does not move a note stored before there was a reference point', () => {
+    const old = { mode: 'document', doc: { x: 100, y: 120, fx: 0, fy: 0, docW: 1, docH: 1 } };
+    expect(placeNote(at(620, 900), old, resolvedAt(100, 320))).toEqual({
+      x: 620,
+      y: 900,
+      orphan: false,
+    });
+  });
+
+  it('survives a resolver that throws', () => {
+    const boom = () => {
+      throw new Error('detached from the document');
+    };
+    expect(placeNote(at(620, 900), anchorRef(100, 120), boom)).toEqual({
+      x: 620,
+      y: 900,
+      orphan: false,
+    });
+  });
+});
+
+describe('captureAt', () => {
+  /*
+   * Every anchor leaves capture already resolved once. Without that number a note has no way
+   * to tell "the page has not moved" from "the page moved to exactly here", which is the
+   * whole of the 0.0.17 fix -- so the invariant is asserted rather than assumed.
+   */
+  it('records the point its own anchor resolves to', () => {
+    const anchor = captureAt(140, 260);
+    expect(anchor.ref).toBeDefined();
+    expect(Number.isFinite(anchor.ref?.x as number)).toBe(true);
+    expect(Number.isFinite(anchor.ref?.y as number)).toBe(true);
+  });
+
+  it('places a note it captured for at the point it was captured at', () => {
+    const anchor = captureAt(140, 260);
+    expect(placeNote({ x: 140, y: 260 }, anchor)).toEqual({ x: 140, y: 260, orphan: false });
   });
 });

@@ -24,7 +24,8 @@
  *
  * ## The credential
  *
- * The same AMO API key `tools/sign.mjs` uses, out of `C:/Projects/.env`. AMO's API wants a JWT
+ * The same AMO API key `tools/sign.mjs` uses, found the same way -- the environment, then
+ * `~/Projects/.env`, then the Windows path this was written on. AMO's API wants a JWT
  * that the client signs itself: HS256 over `{iss, jti, iat, exp}`, valid for at most five
  * minutes. `web-ext` does this internally; there is no shared helper to import, so the twelve
  * lines are here.
@@ -33,19 +34,47 @@
 import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 
-const ENV_FILE = 'C:/Projects/.env';
 const SLUG = 'chevalet-note';
 
+/**
+ * Where the AMO credentials live.
+ *
+ * `C:/Projects/.env` was hard-coded, here and in the other AMO script, from the Windows
+ * machine this was written on. Anywhere else both failed on their first line with "does not
+ * exist" -- which on the day of a hot fix is the release tooling being the broken thing. So:
+ * the environment first, which is what CI and a shell export already use, then the workspace
+ * file on either platform.
+ *
+ * Nothing here is printed, and the list is paths only -- a missing credential says which
+ * places were looked in, never what was found in them.
+ */
+const ENV_FILES = [
+  process.env.CN_ENV_FILE,
+  process.env.HOME ? `${process.env.HOME}/Projects/.env` : undefined,
+  'C:/Projects/.env',
+].filter(Boolean);
+
+/** Read one credential: the process environment first, then the first file that has it. */
 function secret(name) {
-  if (!existsSync(ENV_FILE)) throw new Error(`${ENV_FILE} does not exist.`);
-  for (const line of readFileSync(ENV_FILE, 'utf8').split(/\r?\n/)) {
-    const at = line.indexOf('=');
-    if (at > 0 && line.slice(0, at).trim() === name) {
-      const value = line.slice(at + 1).trim();
-      if (value) return value;
+  const fromEnv = process.env[name];
+  if (fromEnv?.trim()) return fromEnv.trim();
+
+  for (const file of ENV_FILES) {
+    if (!existsSync(file)) continue;
+    for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+      const at = line.indexOf('=');
+      if (at > 0 && line.slice(0, at).trim() === name) {
+        const value = line.slice(at + 1).trim();
+        if (value) return value;
+      }
     }
   }
-  throw new Error(`${name} is not set in ${ENV_FILE}.`);
+  throw new Error(
+    `${name} is not set.\n` +
+      'Create an API key at https://addons.mozilla.org/en-US/developers/addon/api/key/, then\n' +
+      `either export ${name} or put it in one of:\n` +
+      ENV_FILES.map((f) => `  ${f}`).join('\n'),
+  );
 }
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');

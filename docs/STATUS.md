@@ -1,6 +1,7 @@
-# Status — v0.0.16, 8 September 2026
+# Status — v0.0.17, 15 September 2026
 
-**0.0.16 is live on addons.mozilla.org.** Confirmed from the server, not from a page:
+**0.0.17 is a hot fix: notes did not stay where they were put.** It goes to the store through
+the listed channel, on top of 0.0.16, which is what store users are on today:
 
 ```
 $ pnpm amo:status
@@ -8,9 +9,12 @@ $ pnpm amo:status
   0.0.8      listed      public              2026-09-04 <- reaches store users
 ```
 
-Firefox updates everyone who installed from the store, on its own schedule. It is the first
-version to reach them since 0.0.8, and it carries eight releases of change in one update --
-`CHANGELOG.md` is written for those people.
+Run that again after submitting and read the channel column; a signing script that says
+"submitted" is not evidence, which is the lesson of the seven versions below.
+
+Firefox updates everyone who installed from the store, on its own schedule. 0.0.16 was the
+first version to reach them since 0.0.8 and it carried eight releases of change in one update
+-- `CHANGELOG.md` is written for those people, and 0.0.17 is at the top of it.
 
 ## How eight releases piled up
 
@@ -41,6 +45,54 @@ than asserted: the version string, inlined in five bundles, and the shadow host'
 which is a SHA-256 of `name@version` and so moves with it. Unzip the 0.0.14 `.xpi` next to
 `dist/` and diff them -- that is how this paragraph stopped saying "byte-identical", which is
 what it said first.
+
+## What 0.0.17 changed — a hot fix
+
+**Notes did not stay where they were put.** Reported directly: *"when i add a sticky note and
+place it somewhere the place of that sticky note not saving in that page ever and with refresh
+note all of them come in default place"*. Every release from the first one had it.
+
+The position was saved. `spikes/firefox-persist.mjs` reads it back out of IndexedDB after a
+drag and a reload and has always printed YES -- which is why this survived so long. It measured
+the STORE. Nothing measured the SCREEN.
+
+`placeFor` in `src/cs/renderer.ts` re-resolved each note's anchor on mount and, whenever it was
+confident, returned the resolver's answer as the note's position. **A resolution is not a
+position.** The text tier usually wins the scoring (0.92 against the element path's 0.90) and
+it answers with the corner of the quoted run of prose -- which is where the note's SUBJECT is,
+not where the paper was dropped. So every note on every page with text went back to within a
+line or two of where it was made, and the stored coordinates were only ever reached for when
+anchoring had failed outright.
+
+The fix reads the resolver as a **displacement** instead. Every anchor now records, in
+`anchor.ref`, the point it resolved to at the moment it was captured; on the next load the note
+moves by `resolved_now - ref`, applied to its own stored coordinates. An unchanged page
+produces zero and the note does not move at all. A page that grew a banner moves the note down
+by the height of the banner, which is the whole point of anchoring and is now measured rather
+than assumed. A note is also re-anchored where it lands when it is dropped, so dragging one
+next to a different paragraph attaches it to that paragraph -- with the host taken out of hit
+testing for the duration, or `elementFromPoint` would answer "our own shadow host" and every
+moved note would anchor to `<body>`.
+
+**Notes written before 0.0.17 have no `ref`.** They are placed at their stored coordinates --
+exactly where the person left them, which is what the report asks for -- and they start
+following the page again the first time they are moved. No migration writes to anyone's store.
+
+**Two more fields that were set and never kept**, found while reading the same function.
+`ui.locked` and `ui.z` were read when a note was mounted and never written back: a locked note
+came back unlocked and a note raised to the front dropped behind its neighbours. `NoteView` had
+no getter for either, so the renderer could not have saved them -- a missing getter, not a
+missing line at the call site. `bringToFront` now also declines to raise a note that is already
+on top, so a click on a note is not a write.
+
+**`spikes/firefox-place.mjs`** is the new spike, and the one that found all of this. It asks
+the page what is under two points -- where the note was dropped, and where it was made -- before
+and after a reload. On 0.0.16 it prints NO three times; that run is the control.
+
+**The release tooling did not run on this machine.** `tools/sign.mjs` and `tools/amo-status.mjs`
+both read their AMO key from a hard-coded `C:/Projects/.env`, from the Windows machine the
+project started on, and failed on their first line anywhere else. They now read the environment
+first, then `~/Projects/.env`, then the old path.
 
 ## What 0.0.16 changed
 

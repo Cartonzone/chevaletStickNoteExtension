@@ -343,10 +343,43 @@ describe('collapsing and locking', () => {
     expect(m.spy.changes).toBeGreaterThan(before);
   });
 
-  it('a locked note still reports the lock', () => {
+  /*
+   * The lock and the stack were the half of "so the state survives a reload" that did not.
+   * Both are stored fields, both were read when a note was mounted, and neither was ever
+   * written back -- because the renderer had no way to ASK for them. A test that only counted
+   * `onChange` calls could not see that: the call happened, and the thing it was supposed to
+   * carry was unreachable. So these assert the getters, which are what the renderer reads.
+   */
+  it('a locked note reports the lock, which is what gets saved', () => {
     const m = mount('x');
     const before = m.spy.changes;
+    expect(m.view.isLocked).toBe(false);
     m.view.setLocked(true);
+    expect(m.view.isLocked).toBe(true);
     expect(m.spy.changes).toBeGreaterThan(before);
+    m.view.setLocked(false);
+    expect(m.view.isLocked).toBe(false);
+  });
+});
+
+describe('raising a note', () => {
+  it('reports its new height in the stack, and tells the host', () => {
+    const m = mount('x'); // mounted at z 1; this host raises to 5
+    const before = m.spy.changes;
+    expect(m.view.z).toBe(1);
+    m.view.bringToFront();
+    expect(m.view.z).toBe(5);
+    expect(m.spy.changes).toBeGreaterThan(before);
+  });
+
+  it('is not a change when the note is already on top', () => {
+    const m = mount('x');
+    m.view.bringToFront();
+    const settled = m.spy.changes;
+    // Every click on a note calls this. A write each time would make "last edited" mean
+    // "last clicked" for a note nobody edited.
+    m.view.bringToFront();
+    m.view.bringToFront();
+    expect(m.spy.changes).toBe(settled);
   });
 });

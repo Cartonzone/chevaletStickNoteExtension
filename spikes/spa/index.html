@@ -71,6 +71,31 @@
   }
   window.addEventListener('popstate', show);
   show();
+
+  /*
+   * A banner that is there on some loads and not on others -- `#pad=200` puts 200 pixels of
+   * it above everything else.
+   *
+   * This is the other half of what a note anchor is FOR, and until 0.0.17 nothing here
+   * exercised it: a note is stuck to the page's content, so content that moves down between
+   * two loads has to take the note with it. `spikes/firefox-place.mjs` measures both
+   * directions against this -- a page that has not changed must not move the note by a
+   * pixel, and this banner must move it by exactly its height.
+   *
+   * In the HASH rather than the query on purpose: the extension's default URL matching
+   * ignores a hash and keeps a query, so `?pad=200` would be a different page with different
+   * notes, which is not the question being asked.
+   */
+  const pad = /(?:^|&)pad=(\d+)/.exec(location.hash.slice(1));
+  if (pad) {
+    const banner = document.createElement('div');
+    banner.id = 'banner';
+    banner.style.cssText =
+      'height:' + Number(pad[1]) + 'px;background:#ffe94a;border:2px solid #14110e;' +
+      'display:flex;align-items:center;justify-content:center;margin-bottom:20px';
+    banner.textContent = 'a banner that was not here last time (' + pad[1] + 'px)';
+    document.querySelector('main').prepend(banner);
+  }
 </script>
 </body>
 </html>

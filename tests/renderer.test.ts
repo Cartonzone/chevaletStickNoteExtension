@@ -300,6 +300,52 @@ describe('what the background can tell it', () => {
     expect(sent.some((m) => m.t === 'note/create')).toBe(true);
   });
 
+  /*
+   * What a new note is born with.
+   *
+   * `anchor.ref` is the point the anchor resolves to at the moment it is captured, and
+   * without it a note has no way to tell "the page has not moved" from "the page moved to
+   * exactly here" -- which is the whole of the bug fixed in 0.0.17, where every note went
+   * back to where it was made on every reload. Asserted here because it is an invariant of
+   * the create path, not of one tier of anchoring.
+   */
+  it('gives a new note an anchor with a reference point', async () => {
+    await load([]);
+    sent = [];
+    await fromBackground({ t: 'command', name: 'new-note' });
+    await new Promise((r) => setTimeout(r, 60));
+    const create = sent.find((m) => m.t === 'note/create') as
+      | { note: { anchor: { ref?: { x: number; y: number } } } }
+      | undefined;
+    expect(create?.note.anchor.ref).toBeDefined();
+    expect(Number.isFinite(create?.note.anchor.ref?.x as number)).toBe(true);
+  });
+
+  /*
+   * `z` and `locked` are stored fields that the renderer used to leave out of every patch it
+   * sent, because `NoteView` had no getter for either. A note raised above its neighbours
+   * dropped back behind them on reload, and a locked note came back unlocked.
+   */
+  it('saves the whole of a note ui, not the half it could reach', async () => {
+    await load([]);
+    await fromBackground({ t: 'command', name: 'new-note' });
+    // Made, mounted, focused -- which raises it, which is a change worth storing.
+    await new Promise((r) => setTimeout(r, 400));
+    const patch = sent.find((m) => m.t === 'note/patch') as
+      | { patch: { ui?: Record<string, unknown> } }
+      | undefined;
+    expect(patch?.patch.ui).toBeDefined();
+    expect(Object.keys(patch?.patch.ui ?? {}).sort()).toEqual([
+      'collapsed',
+      'h',
+      'locked',
+      'w',
+      'x',
+      'y',
+      'z',
+    ]);
+  });
+
   it('ignores a message about a note it does not have', async () => {
     await load([wire()]);
     await fromBackground({ t: 'note/renamed', id: 'n_somewhere_else', name: 'x' });

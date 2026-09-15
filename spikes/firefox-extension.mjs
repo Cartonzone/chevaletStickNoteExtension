@@ -49,6 +49,13 @@ const o = new Options();
 if (!process.env.CN_HEADED) o.addArguments('-headless');
 o.addArguments('-width', '1280', '-height', '900');
 o.setAlertBehavior('accept');
+/*
+ * Which Firefox. The default is whatever geckodriver finds on PATH, which is the right
+ * answer everywhere except a machine where Firefox is a snap: geckodriver cannot hand a
+ * confined snap a profile outside the home directory, and the process exits before
+ * Marionette is up. `CN_FIREFOX` points at an ordinary unpacked build instead.
+ */
+if (process.env.CN_FIREFOX) o.setBinary(process.env.CN_FIREFOX);
 
 const d = await new Builder().forBrowser('firefox').setFirefoxOptions(o).build();
 mkdirSync('spikes/shots', { recursive: true });

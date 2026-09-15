@@ -23,7 +23,7 @@ import {
   overlapAt,
   rangeAt,
 } from './text.ts';
-import { type Anchor, GOOD_ENOUGH, type Resolution } from './types.ts';
+import { type Anchor, GOOD_ENOUGH, ORPHAN_BELOW, type Resolution } from './types.ts';
 
 export type { TextIndex } from './text.ts';
 export { buildTextIndex } from './text.ts';
@@ -45,6 +45,11 @@ function docMetrics() {
  *
  * `index` is optional: pass one when capturing several notes at once, otherwise a throwaway
  * index is built. Capturing is rare (once per note) so the cost is not on any hot path.
+ *
+ * Every anchor leaves here already resolved once, with the answer in `ref`. That is what
+ * makes the resolver's output usable as a displacement rather than as a position -- read the
+ * comment on `Anchor.ref`, which is the whole of the fix released in 0.0.17. It costs one
+ * resolution against an index this function has usually built anyway.
  */
 export function captureAt(docX: number, docY: number, index?: TextIndex): Anchor {
   const { docW, docH, dir } = docMetrics();
@@ -56,15 +61,21 @@ export function captureAt(docX: number, docY: number, index?: TextIndex): Anchor
   const vx = docX - window.scrollX;
   const vy = docY - window.scrollY;
 
+  // Built at most once, and only if something asks for it: an anchor with no text tier never
+  // needs a text index, and walking the document for one would be the most expensive thing
+  // in this function.
+  let idx = index;
+  const getIndex = (): TextIndex => (idx ??= buildTextIndex());
+
   const el = pickAnchorElement(vx, vy);
   if (el) anchor.el = captureElement(el, docX, docY);
 
   const caret = caretAt(vx, vy);
   if (caret) {
-    const idx = index ?? buildTextIndex();
-    const text = captureCaret(idx, caret.node, caret.offset);
+    const text = captureCaret(getIndex(), caret.node, caret.offset);
     if (text) anchor.text = text;
   }
+  anchor.ref = referencePoint(anchor, getIndex);
   return anchor;
 }
 
@@ -92,7 +103,20 @@ export function captureSelection(range: Range, index?: TextIndex): Anchor | null
       ? (range.commonAncestorContainer as Element)
       : range.commonAncestorContainer.parentElement;
   if (container) anchor.el = captureElement(container, docX, docY);
+  anchor.ref = referencePoint(anchor, () => idx);
   return anchor;
+}
+
+/**
+ * Resolve a just-captured anchor, so the note has something to measure the page against.
+ *
+ * Deliberately the SAME call the renderer will make on the next load: a reference point
+ * produced any other way would drift from it, and the whole value of this number is that on
+ * an unchanged page the two are identical and the note does not move at all.
+ */
+function referencePoint(anchor: Anchor, getIndex: () => TextIndex): { x: number; y: number } {
+  const r = resolveAnchor(anchor, { getIndex });
+  return { x: r.x, y: r.y };
 }
 
 function caretAt(vx: number, vy: number): { node: Node; offset: number } | null {
@@ -202,6 +226,69 @@ export function resolveAnchor(anchor: Anchor, opts: ResolveOptions = {}): Resolu
   });
 
   return best(candidates);
+}
+
+/**
+ * Where a note goes now, given where it was left and what its anchor says today.
+ *
+ * ## The bug this exists to prevent
+ *
+ * Reported against every release up to 0.0.16: *"when i add a sticky note and place it
+ * somewhere the place of that sticky note not saving in that page ever and with refresh note
+ * all of them come in default place"*. The position WAS saved --
+ * `spikes/firefox-persist.mjs` reads it straight back out of IndexedDB and has always said
+ * so. It was read back and then thrown away.
+ *
+ * The renderer used to take the resolver's answer outright whenever it was confident enough.
+ * **A resolution is not a position.** The text tier, which usually wins, answers with the
+ * corner of the quoted run of prose; that is where the note's CONTENT is, not where the
+ * person dropped the paper, and the two are a hundred-odd pixels apart the moment anyone
+ * drags a note anywhere. So every note went back to the neighbourhood it was made in, and
+ * the stored coordinates were reached for only when anchoring had failed outright.
+ *
+ * What the page can honestly report is not where a note belongs. It is **how far the thing
+ * the note is stuck to has moved** since the note was put down: `r - anchor.ref`. Applied to
+ * the note's own coordinates, that makes an unchanged page move nothing at all, and a page
+ * that grew a banner overnight move the note down by the height of the banner -- which is
+ * the whole reason anchors exist.
+ *
+ * `resolve` is injected so the policy can be exercised without a document;
+ * `spikes/firefox-place.mjs` measures the same thing from the page, in a real Firefox.
+ */
+export function placeNote(
+  stored: { x: number; y: number },
+  anchor: unknown,
+  resolve: (a: Anchor) => Resolution = resolveAnchor,
+): { x: number; y: number; orphan: boolean } {
+  const a = anchor as Anchor | null;
+  if (!a || typeof a !== 'object' || !('mode' in a)) return { ...stored, orphan: false };
+
+  /*
+   * A note stored before 0.0.17 has no reference point, and one cannot be invented for it:
+   * what the resolver says today can be compared with nothing. Its own coordinates are the
+   * honest answer -- which is exactly where the person left it -- and it gains a reference
+   * the moment it is next moved, after which it follows the page again.
+   */
+  const ref = a.ref;
+  if (!ref || !Number.isFinite(ref.x) || !Number.isFinite(ref.y)) {
+    return { ...stored, orphan: false };
+  }
+
+  let r: Resolution;
+  try {
+    r = resolve(a);
+  } catch {
+    return { ...stored, orphan: false };
+  }
+  /*
+   * Lost its target entirely: left exactly where it was, and said so. Nothing in the UI shows
+   * `orphan` yet -- what it buys today is that a note whose anchor has gone is never MOVED on
+   * the strength of a guess, which is the half that protects someone's notes.
+   */
+  if (r.confidence < ORPHAN_BELOW) return { ...stored, orphan: true };
+  // Found, but not well enough to trust a displacement measured from it.
+  if (r.confidence < GOOD_ENOUGH) return { ...stored, orphan: false };
+  return { x: stored.x + (r.x - ref.x), y: stored.y + (r.y - ref.y), orphan: false };
 }
 
 function best(candidates: Resolution[]): Resolution {

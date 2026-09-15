@@ -1,17 +1,36 @@
 # Spikes
 
-> **The two newest matter most.** `spikes/firefox-extension.mjs` drives the REAL extension over
-> a real page, and `spikes/firefox-persist.mjs` asks whether a note you typed is still there
-> after a reload. Both exist because two bugs reached a user that nothing here could have
-> caught: the playground has the note stack but no background, `tests/messages.test.ts` has the
-> background but no page, and both bugs lived in the seam between them.
+> **The three newest matter most.** `spikes/firefox-place.mjs` asks whether a note stays where
+> you put it, `spikes/firefox-extension.mjs` drives the REAL extension over a real page, and
+> `spikes/firefox-persist.mjs` asks whether a note you typed is still there after a reload. All
+> three exist because a bug reached a user that nothing else here could have caught: the
+> playground has the note stack but no background, `tests/messages.test.ts` has the background
+> but no page.
 >
 > Each has a control. Put the bug back and they print NO.
 >
 >     pnpm serve
 >     pnpm build:test          # dist-test/, the shipped build with host access declared
+>     node spikes/firefox-place.mjs
 >     node spikes/firefox-extension.mjs
 >     node spikes/firefox-persist.mjs
+>
+> **On a machine where Firefox is a snap**, geckodriver cannot hand it a profile and the browser
+> exits before Marionette is up. Point these at an ordinary unpacked build instead:
+>
+>     CN_FIREFOX=/path/to/firefox node spikes/firefox-place.mjs
+
+### `firefox-persist.mjs` measured the store, and the bug was on the screen
+
+Worth reading before trusting any spike here. It drags a note, reloads, reads `ui.x`/`ui.y`
+straight out of IndexedDB and prints **YES — the position survives a reload**. It was telling
+the truth: the position *was* stored, correctly, in every release.
+
+And in every release the note came back somewhere else, because the renderer read that stored
+position and then overruled it with its anchor. One spike said the data was safe while the
+person looking at the page could see that it was not. `firefox-place.mjs` exists because of
+that gap: it asks the PAGE what is under two points, before and after a reload, and never
+opens the database at all.
 
 ## Phase 0 — de-risking spikes
 
@@ -315,6 +334,7 @@ honest either way and is why it does not block an AMO submission.
 | `firefox-unload.mjs` | R1 by navigation instead of a tab close. Four triggers, two prefs, control never fires — Marionette does not open the prompt at all |
 | `firefox-fonts.mjs` | Can a content script give a note a bundled face on a page whose CSP forbids fonts. Yes, via `new FontFace(buffer)` — and the arabic and latin subsets share no glyphs |
 | `firefox-persist.mjs` | Type into a note, reload: is the text there? |
+| `firefox-place.mjs` | Drag a note, reload: is it where you dropped it, or back where you made it? And does a banner pushed in above still carry it down? |
 | `firefox-extension.mjs` | The real extension over a real page: injection, a note, a reload, and a single-page app changing route |
 | `shots.mjs` | 40 photographs of every pane in both themes, including native-resolution crops |
 | `cabinet/` | The cabinet in an ordinary page, with the four browser edges stubbed |
