@@ -190,11 +190,11 @@ if (LISTED) {
   console.log(
     `\nSubmitted. ${version} went to the listed channel. Confirm it, do not assume:\n` +
       '\n  pnpm amo:status\n' +
-      '\nStill owed to Mozilla, and the sign API has a field for neither:\n' +
-      `  1. git archive --format=zip --prefix=chevalet-note/ -o source.zip v${version}\n` +
-      '  2. Attach that archive as `source`, plus release notes, by PATCHing the version\n' +
-      '     through the v5 API, or through the Developer Hub form. The build is minified,\n' +
-      '     so a reviewer WILL ask for source if it is missing, and can disable it.\n' +
+      '\nStill owed to Mozilla -- the sign API has a field for none of it. Two commands,\n' +
+      'and the second is not optional: the build is minified, so a reviewer WILL ask for\n' +
+      'source if it is missing, and can disable the add-on while waiting.\n' +
+      `  1. git archive --format=zip --prefix=chevalet-note/ -o web-ext-artifacts/source-${version}.zip v${version}\n` +
+      '  2. pnpm amo:attach\n' +
       '\nWhen it passes, Firefox updates everyone who installed from the store, on its own.\n',
   );
 } else {

@@ -87,15 +87,18 @@ pnpm sign:listed
 ```
 
 The source archive does not go through `sign`, which has no field for it -- but it does not
-need the Hub form either. `PATCH /api/v5/addons/addon/<slug>/versions/<id>/` takes `source` as
-multipart, and `release_notes` and `approval_notes` as JSON. **Two requests, not one:** a
-multipart body cannot carry the `{lang-code: value}` object a localised field wants, and
-sending it as a string comes back `400 You must provide an object of {lang-code:value}`.
+need the Hub form either. **`pnpm amo:attach`** does it:
+`PATCH /api/v5/addons/addon/<slug>/versions/<id>/` takes `source` as multipart, and
+`release_notes` and `approval_notes` as JSON. **Two requests, not one:** a multipart body
+cannot carry the `{lang-code: value}` object a localised field wants, and sending it as a
+string comes back `400 You must provide an object of {lang-code:value}`. The release notes are
+read out of `CHANGELOG.md`, so there is one text rather than two that drift, and the script
+reads all three fields back off the server afterwards rather than reporting success.
 
 Either way, the channel stops being a question anyone answers by hand.
 
-The listed history will read 0.0.8, then 0.0.16, with a seven-number hole. That hole is the
-record of this and it is not worth hiding.
+The listed history reads 0.0.8, then 0.0.16, then 0.0.17, with a seven-number hole. That hole
+is the record of this and it is not worth hiding.
 
 ## Listed or unlisted — pick this first, it changes everything
 
@@ -147,11 +150,18 @@ runs esbuild with `minify: true`, so every shipped file qualifies. Uploading onl
 would get the submission rejected with a request for source, adding a review cycle.
 
 What to upload as the source archive: a zip of the repository *without* `node_modules`, `dist`
-and `web-ext-artifacts`. The cleanest way is an archive of the tagged commit:
+and `web-ext-artifacts`. The cleanest way is an archive of the tagged commit, which
+`pnpm amo:attach` then sends:
 
 ```bash
-git archive --format=zip --prefix=chevalet-note/ -o web-ext-artifacts/source-0.0.10.zip v0.0.10
+git archive --format=zip --prefix=chevalet-note/ -o web-ext-artifacts/source-0.0.17.zip v0.0.17
+pnpm amo:attach
 ```
+
+**Check that the archive builds before sending it**, rather than claiming that it does: unzip
+it somewhere else, `pnpm install --frozen-lockfile`, `node --experimental-strip-types build.ts`,
+and `diff -r` its `dist/` against the one that was signed. For 0.0.17 that diff was empty,
+which is what the reviewer notes say.
 
 `SOURCE.md` is already written for the reviewer and covers the toolchain, the exact commands,
 and why the build is reproducible byte-for-byte (no timestamps, no network, the host tag
@@ -249,7 +259,8 @@ Releasing an update is then four steps, and the fourth is not optional:
 
 1. Bump `version` in `package.json`, `pnpm check` (which builds).
 2. `pnpm sign:listed`.
-3. Attach the source archive and the release notes to the new version.
+3. `git archive --format=zip --prefix=chevalet-note/ -o web-ext-artifacts/source-<v>.zip v<v>`
+   then `pnpm amo:attach` — the source archive, the release notes and the reviewer notes.
 4. `pnpm amo:status`, and read the channel column.
 
 Firefox picks it up for everyone who installed it, on its own schedule, with no action from

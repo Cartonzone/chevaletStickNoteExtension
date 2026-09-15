@@ -29,7 +29,8 @@
     "spike:pages": "node spikes/firefox-pages.mjs",
     "spike:ghost": "node spikes/firefox-ghost.mjs",
     "sign:listed": "node tools/sign.mjs --listed",
-    "amo:status": "node tools/amo-status.mjs"
+    "amo:status": "node tools/amo-status.mjs",
+    "amo:attach": "node tools/amo-attach.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
